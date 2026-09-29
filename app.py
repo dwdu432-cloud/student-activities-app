@@ -3,6 +3,22 @@ import sqlite3
 import os
 import pandas as pd
 import base64
+import streamlit as st
+
+# كود لإخفاء العناصر غير المرغوبة (الهيدر، الفوتر، وعلامة Hosted with Streamlit)
+hide_streamlit_style = """
+            <style>
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            header {visibility: hidden;}
+            div[data-testid="stDecoration"] {display: none;}
+            .viewerBadge_container__1S-td {display: none !important;}
+            div[class*="viewerBadge"] {display: none !important;}
+            a[class*="viewerBadge"] {display: none !important;}
+            iframe[title="streamlit_badge"] {display: none !important;}
+            </style>
+            """
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
 # 1. إعداد الصفحة
 st.set_page_config(
