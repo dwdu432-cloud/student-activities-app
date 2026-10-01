@@ -43,66 +43,57 @@ logo_dept_html = f'<img src="data:image/png;base64,{img_dept}" style="max-height
 # CSS معدل ومحسّن خصيصاً للشاشات الصغير (Mobile-Friendly)
 st.markdown("""
     <style>
-    /* خلفية متناسقة للواجهة */
-    .stApp {
+    /* 1. إجبار خلفية الصفحة على اللون الفاتح */
+    .stApp, [data-testid="stAppViewContainer"] {
         background-color: #f8f9fa !important;
         color: #1a202c !important;
     }
-    
-    /* حاوية الهيدر */
-    .header-box {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        width: 100%;
-        padding: 5px 0;
-        gap: 5px;
-    }
-    
-    /* النص الأوسط لمنع التفاف الكلمات */
-    .header-text {
-        text-align: center;
-        white-space: nowrap; /* يمنع انكسار الكلمات مثل المستق-بل */
-        flex-shrink: 0;
-    }
-    
-    .header-text h3 {
-        font-size: 1.15rem !important;
-        color: #1e3a8a !important;
-        margin: 0 !important;
-        font-weight: 800;
-        line-height: 1.2;
-    }
-    
-    .header-text h5 {
-        font-size: 0.8rem !important;
-        color: #4b5563 !important;
-        margin: 3px 0 0 0 !important;
-        font-weight: 600;
-        line-height: 1.2;
+
+    /* 2. استهداف حقول الإدخال بالكامل وإلغاء خلفية الداكن */
+    div[data-baseweb="input"], 
+    div[data-baseweb="base-input"],
+    input[class*="st-"] {
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+        border-radius: 8px !important;
     }
 
-    /* أزرار وكروت النظام */
-    .stButton>button {
+    .stTextInput input {
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+        border: 1px solid #cbd5e1 !important;
+        padding: 10px 14px !important;
+    }
+
+    /* 3. العناوين والنصوص فوق الحقول */
+    .stTextInput label p, label[data-testid="stWidgetLabel"] p {
+        color: #1e293b !important;
+        font-weight: 600 !important;
+    }
+
+    /* 4. الأزرار */
+    .stButton>button, div[data-testid="stFormSubmitButton"]>button {
         background-color: #1e3a8a !important;
-        color: white !important;
+        color: #ffffff !important;
         border-radius: 8px !important;
         border: none !important;
-        padding: 10px 20px !important;
-        font-weight: bold;
-        width: 100%;
+        padding: 10px 24px !important;
+        font-weight: bold !important;
+        width: 100% !important;
     }
-    
-    .score-card {
-        background-color: #ffffff;
-        border-right: 5px solid #1e3a8a;
-        padding: 15px;
-        border-radius: 10px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        margin-bottom: 20px;
+
+    /* 5. إخفاء شريط ووسام Streamlit السفلـي والقوائم */
+    #MainMenu, header, footer, 
+    div[data-testid="stHeader"], 
+    div[data-testid="stToolbar"],
+    div[class*="viewerBadge"], 
+    iframe[title="streamlit_badge"] {
+        display: none !important;
+        visibility: hidden !important;
     }
     </style>
 """, unsafe_allow_html=True)
+  
 
 # ==================== عرض الهيدر الموحد ====================
 st.markdown(f"""
