@@ -43,16 +43,73 @@ logo_dept_html = f'<img src="data:image/png;base64,{img_dept}" style="max-height
 # CSS معدل ومحسّن خصيصاً للشاشات الصغير (Mobile-Friendly)
 st.markdown("""
     <style>
-    /* 1. إجبار خلفية الصفحة على اللون الفاتح */
-    .stApp, [data-testid="stAppViewContainer"] {
+    /* 1. إعدادات خلفية التطبيق والخطوط */
+    .stApp {
         background-color: #f8f9fa !important;
         color: #1a202c !important;
     }
 
-    /* 2. استهداف حقول الإدخال بالكامل وإلغاء خلفية الداكن */
-    div[data-baseweb="input"], 
-    div[data-baseweb="base-input"],
-    input[class*="st-"] {
+    /* 2. تصميم الهيدر التفاعلي (Responsive Header) */
+    .header-box {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        width: 100% !important;
+        padding: 5px 0 !important;
+        gap: 8px !important;
+    }
+
+    .header-logo {
+        flex: 0 0 auto !important;
+        display: flex !important;
+        align-items: center !important;
+    }
+
+    .header-logo img {
+        height: 55px !important;
+        width: auto !important;
+        object-fit: contain !important;
+    }
+
+    .header-text {
+        flex: 1 1 auto !important;
+        text-align: center !important;
+        padding: 0 5px !important;
+    }
+
+    .header-text h3 {
+        font-size: 1.15rem !important;
+        color: #1e3a8a !important;
+        margin: 0 !important;
+        font-weight: 800 !important;
+        line-height: 1.2 !important;
+    }
+
+    .header-text h5 {
+        font-size: 0.8rem !important;
+        color: #4b5563 !important;
+        margin: 3px 0 0 0 !important;
+        font-weight: 600 !important;
+        line-height: 1.2 !important;
+    }
+
+    /* 3. تعديل حجم الهيدر خصيصاً للشاشات الصغيرة (الموبايل) */
+    @media (max-width: 600px) {
+        .header-logo img {
+            height: 40px !important; /* تصغير اللوجو تلقائياً على الموبايل */
+        }
+        .header-text h3 {
+            font-size: 0.85rem !important; /* تصغير العنوان لتفادي النزول */
+            white-space: nowrap !important;
+        }
+        .header-text h5 {
+            font-size: 0.6rem !important;
+            white-space: nowrap !important;
+        }
+    }
+
+    /* 4. إصلاح حقول الإدخال ومنع السواد في الموبايل واللابتوب */
+    div[data-baseweb="input"], input {
         background-color: #ffffff !important;
         color: #0f172a !important;
         border-radius: 8px !important;
@@ -62,27 +119,25 @@ st.markdown("""
         background-color: #ffffff !important;
         color: #0f172a !important;
         border: 1px solid #cbd5e1 !important;
-        padding: 10px 14px !important;
     }
 
-    /* 3. العناوين والنصوص فوق الحقول */
     .stTextInput label p, label[data-testid="stWidgetLabel"] p {
         color: #1e293b !important;
         font-weight: 600 !important;
     }
 
-    /* 4. الأزرار */
+    /* 5. الأزرار */
     .stButton>button, div[data-testid="stFormSubmitButton"]>button {
         background-color: #1e3a8a !important;
         color: #ffffff !important;
         border-radius: 8px !important;
         border: none !important;
-        padding: 10px 24px !important;
+        padding: 10px 20px !important;
         font-weight: bold !important;
         width: 100% !important;
     }
 
-    /* 5. إخفاء شريط ووسام Streamlit السفلـي والقوائم */
+    /* 6. إخفاء زوائد Streamlit */
     #MainMenu, header, footer, 
     div[data-testid="stHeader"], 
     div[data-testid="stToolbar"],
@@ -93,19 +148,18 @@ st.markdown("""
     }
     </style>
 """, unsafe_allow_html=True)
-  
 
 # ==================== عرض الهيدر الموحد ====================
 st.markdown(f"""
     <div class="header-box">
-        <div>{logo_uni_html}</div>
+        <div class="header-logo">{logo_uni_html}</div>
         <div class="header-text">
             <h3>Al-Mustaqbal University</h3>
             <h5>Department of Artificial Intelligence Engineering</h5>
         </div>
-        <div>{logo_dept_html}</div>
+        <div class="header-logo">{logo_dept_html}</div>
     </div>
-    <hr style="margin: 12px 0 20px 0; border-top: 1px solid #e5e7eb;">
+    <hr style="margin: 10px 0 20px 0; border: none; border-top: 1px solid #e2e8f0;">
 """, unsafe_allow_html=True)
 
 # ==================== قاعدة البيانات ====================
