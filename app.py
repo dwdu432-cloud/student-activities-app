@@ -150,7 +150,7 @@ conn.commit()
 
 cursor.execute("SELECT COUNT(*) FROM activities")
 if cursor.fetchone()[0] == 0:
-    default_activities = [("ورشة الذكاء الاصطناعي",), ("دورة برمجة C++",), ("ورشة الـ IoT",)]
+    default_activities = [("AI Workshop",), ("C++ Programming Course",), ("IoT Workshop",)]
     cursor.executemany("INSERT INTO activities (title) VALUES (?)", default_activities)
     conn.commit()
 
@@ -238,8 +238,8 @@ if is_admin_route:
 # ==================== 2. واجهة الطلاب ====================
 else:
     if not st.session_state.logged_in:
-        st.markdown("<h2 style='text-align: center; color: #1e293b; font-weight: 800; margin-bottom: 5px;'>🎓 بوابة نظام الأنشطة الطلابية</h2>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: #64748b; font-size: 0.95rem;'>مرحباً بك عزيزي الطالب، يرجى تسجيل الدخول لمتابعة أنشطتك.</p>", unsafe_allow_html=True)
+        st.markdown("<h2 style='text-align: center; color: #1e293b; font-weight: 800; margin-bottom: 5px;'>🎓 Student Activities System Portal</h2>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: #64748b; font-size: 0.95rem;'>Welcome, student! Please log in to track your activities.</p>", unsafe_allow_html=True)
 
         with st.form("student_login_form"):
             s_id = st.text_input("University ID:")
@@ -269,13 +269,13 @@ else:
 
         st.title("📄Student Dashboard")
 
-        cursor.execute("SELECT SUM(points) FROM submissions WHERE student_id = ? AND status = 'معتمد'", (st.session_state.student_id,))
+        cursor.execute("SELECT SUM(points) FROM submissions WHERE student_id = ? AND status = 'Approved'", (st.session_state.student_id,))
         total_points = cursor.fetchone()[0] or 0
 
         st.markdown(f"""
             <div class="score-card">
-                <h3 style="margin:0; color:#1e3a8a !important;">مجموع درجاتك المعتمدة: {total_points} درجة</h3>
-                <p style="margin:5px 0 0 0; color:#6b7280 !important;">تضاف الدرجات تلقائياً فور توثيق الشهادة من القسم.</p>
+                <h3 style="margin:0; color:#1e3a8a !important;">Total Points Earned: {total_points} Points</h3>
+                <p style="margin:5px 0 0 0; color:#6b7280 !important;">Points are added automatically once the certificate is verified by the department.</p>
             </div>
         """, unsafe_allow_html=True)
 
