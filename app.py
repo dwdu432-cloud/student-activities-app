@@ -136,11 +136,12 @@ st.markdown("""
         font-weight: bold !important;
         width: 100% !important;
     }
-
-    /* 6. إخفاء زوائد Streamlit */
+   /* 6. إخفاء زوائد Streamlit والشارة الحمراء بالكامل */
     #MainMenu, header, footer, 
     div[data-testid="stHeader"], 
     div[data-testid="stToolbar"],
+    [data-testid="manage-app-button"],
+    .stAppDeployButton,
     div[class*="viewerBadge"], 
     iframe[title="streamlit_badge"] {
         display: none !important;
