@@ -3,7 +3,6 @@ import sqlite3
 import os
 import pandas as pd
 import base64
-import streamlit as st
 
 # كود لإخفاء العناصر غير المرغوبة (الهيدر، الفوتر، وعلامة Hosted with Streamlit)
 hide_streamlit_style = """
@@ -96,10 +95,10 @@ st.markdown("""
     /* 3. تعديل حجم الهيدر خصيصاً للشاشات الصغيرة (الموبايل) */
     @media (max-width: 600px) {
         .header-logo img {
-            height: 40px !important; /* تصغير اللوجو تلقائياً على الموبايل */
+            height: 40px !important;
         }
         .header-text h3 {
-            font-size: 0.85rem !important; /* تصغير العنوان لتفادي النزول */
+            font-size: 0.85rem !important;
             white-space: nowrap !important;
         }
         .header-text h5 {
@@ -136,7 +135,18 @@ st.markdown("""
         font-weight: bold !important;
         width: 100% !important;
     }
-   /* 6. إخفاء زوائد Streamlit والشارة الحمراء بالكامل */
+
+    /* 6. بطاقة إجمالي النقاط */
+    .score-card {
+        background-color: #ffffff;
+        border-left: 5px solid #1e3a8a;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        margin-bottom: 20px;
+    }
+
+    /* 7. إخفاء زوائد Streamlit والشارة الحمراء بالكامل */
     #MainMenu, header, footer, 
     div[data-testid="stHeader"], 
     div[data-testid="stToolbar"],
@@ -189,10 +199,18 @@ cursor.execute('''
         file_path TEXT NOT NULL,
         status TEXT DEFAULT 'Under Review',
         points INTEGER DEFAULT 0,
+        rejection_reason TEXT DEFAULT '',
         FOREIGN KEY (student_id) REFERENCES students (student_id)
     )
 ''')
 conn.commit()
+
+# إضافة عمود rejection_reason إذا كانت قاعدة البيانات قديمة
+try:
+    cursor.execute("ALTER TABLE submissions ADD COLUMN rejection_reason TEXT DEFAULT ''")
+    conn.commit()
+except sqlite3.OperationalError:
+    pass  # العمود موجود بالفعل
 
 cursor.execute("SELECT COUNT(*) FROM activities")
 if cursor.fetchone()[0] == 0:
@@ -242,42 +260,111 @@ if is_admin_route:
                     st.success(f"Successfully added ({new_act})!")
                     st.rerun()
 
-        st.subheader("📥 Pending Requests for Review")
-        query = '''
-            SELECT s.id, st.full_name, s.student_id, s.activity_title, s.file_path 
+        # ==================== الفلترة والبحث المتقدم ====================
+        st.subheader("🔍 Search & Filter Requests")
+        col_search, col_status, col_activity = st.columns([2, 1, 1])
+
+        with col_search:
+            search_query = st.text_input("Search by Student Name or ID:", placeholder="Type name or ID...")
+
+        with col_status:
+            status_filter = st.selectbox("Filter Status:", ["All", "Under Review", "Approved", "Rejected"])
+
+        cursor.execute("SELECT title FROM activities")
+        all_activities = ["All Activities"] + [row[0] for row in cursor.fetchall()]
+        with col_activity:
+            activity_filter = st.selectbox("Filter Activity:", all_activities)
+
+        # بناء الاستعلام الهجين
+        sql_query = '''
+            SELECT s.id, st.full_name, s.student_id, s.activity_title, s.file_path, s.status, s.points, s.rejection_reason 
             FROM submissions s
             JOIN students st ON s.student_id = st.student_id
-            WHERE s.status = 'Under Review'
+            WHERE 1=1
         '''
-        cursor.execute(query)
-        pending_list = cursor.fetchall()
+        params = []
 
-        if pending_list:
-            for sub_id, full_name, std_id, act_title, f_path in pending_list:
-                st.markdown("---")
-                st.write(f"👤 **Student:** {full_name} ({std_id})")
-                st.write(f"🎯 **Activity:** {act_title}")
-                if os.path.exists(f_path):
-                    if f_path.lower().endswith(('.png', '.jpg', '.jpeg')):
-                        st.image(f_path, use_container_width=True)
+        if search_query.strip():
+            sql_query += " AND (st.full_name LIKE ? OR s.student_id LIKE ?)"
+            params.extend([f"%{search_query.strip()}%", f"%{search_query.strip()}%"])
+
+        if status_filter != "All":
+            sql_query += " AND s.status = ?"
+            params.append(status_filter)
+
+        if activity_filter != "All Activities":
+            sql_query += " AND s.activity_title = ?"
+            params.append(activity_filter)
+
+        sql_query += " ORDER BY s.id DESC"
+
+        cursor.execute(sql_query, params)
+        filtered_submissions = cursor.fetchall()
+
+        st.subheader("📥 Submissions List")
+
+        if filtered_submissions:
+            for sub_id, full_name, std_id, act_title, f_path, status, points, reason in filtered_submissions:
+                with st.expander(f"📌 [{status}] - {full_name} ({std_id}) - {act_title}", expanded=(status == 'Under Review')):
+                    st.write(f"👤 **Student Name:** {full_name}")
+                    st.write(f"🆔 **University ID:** {std_id}")
+                    st.write(f"🎯 **Activity:** {act_title}")
+                    st.write(f"📊 **Current Status:** {status}")
+
+                    if status == "Approved":
+                        st.success(f"Grade Assigned: {points} Points")
+                    elif status == "Rejected":
+                        st.error(f"Rejection Reason: {reason}")
+
+                    if os.path.exists(f_path):
+                        if f_path.lower().endswith(('.png', '.jpg', '.jpeg')):
+                            st.image(f_path, use_container_width=True)
+                        else:
+                            st.write("📄 The attached file is a PDF document.")
                     else:
-                        st.write("📄 the attached file is a PDF")
-                
-                pts = st.number_input(f"Grade for request #{sub_id}", min_value=1, max_value=20, value=5, key=f"pts_{sub_id}")
-                if st.button(f"Approve Grade #{sub_id}", key=f"btn_{sub_id}"):
-                    cursor.execute("UPDATE submissions SET status = 'Approved', points = ? WHERE id = ?", (pts, sub_id))
-                    conn.commit()
-                    st.success("Successfully approved the certificate and recorded the grade!")
-                    st.rerun()
-        else:
-            st.info("There are currently no pending requests awaiting review.")
+                        st.warning("File path not found.")
 
-        st.subheader("📋 the general log for all requests")
+                    # خيارات الاعتماد والرفض متاحة بشكل ديناميكي
+                    st.markdown("---")
+                    action_col1, action_col2 = st.columns(2)
+
+                    with action_col1:
+                        st.markdown("##### ✅ Approve Certificate")
+                        pts = st.number_input("Grade to assign:", min_value=1, max_value=20, value=5, key=f"pts_{sub_id}")
+                        if st.button(f"Approve Grade #{sub_id}", key=f"btn_app_{sub_id}"):
+                            cursor.execute(
+                                "UPDATE submissions SET status = 'Approved', points = ?, rejection_reason = '' WHERE id = ?",
+                                (pts, sub_id)
+                            )
+                            conn.commit()
+                            st.success("Successfully approved the certificate!")
+                            st.rerun()
+
+                    with action_col2:
+                        st.markdown("##### ❌ Reject Certificate")
+                        rej_reason = st.text_input("Reason for rejection:", key=f"reason_{sub_id}", placeholder="e.g., Unclear image, invalid date...")
+                        if st.button(f"Reject Submission #{sub_id}", key=f"btn_rej_{sub_id}"):
+                            if rej_reason.strip():
+                                cursor.execute(
+                                    "UPDATE submissions SET status = 'Rejected', points = 0, rejection_reason = ? WHERE id = ?",
+                                    (rej_reason.strip(), sub_id)
+                                )
+                                conn.commit()
+                                st.warning("Submission has been rejected with feedback saved.")
+                                st.rerun()
+                            else:
+                                st.error("Please enter a rejection reason before proceeding.")
+
+        else:
+            st.info("No matching requests found based on your search/filter criteria.")
+
+        st.subheader("📋 General Log Table")
         df_all = pd.read_sql_query('''
-            SELECT s.id AS 'Request Number', st.full_name AS 'Student Name', s.student_id AS 'University ID', 
-                   s.activity_title AS 'Activity', s.status AS 'Status', s.points AS 'Grade'
+            SELECT s.id AS 'Request ID', st.full_name AS 'Student Name', s.student_id AS 'University ID', 
+                   s.activity_title AS 'Activity', s.status AS 'Status', s.points AS 'Grade', s.rejection_reason AS 'Rejection Reason'
             FROM submissions s
             JOIN students st ON s.student_id = st.student_id
+            ORDER BY s.id DESC
         ''', conn)
         st.dataframe(df_all, use_container_width=True)
 
@@ -313,7 +400,7 @@ else:
             st.session_state.student_name = None
             st.rerun()
 
-        st.title("📄Student Dashboard")
+        st.title("📄 Student Dashboard")
 
         cursor.execute("SELECT SUM(points) FROM submissions WHERE student_id = ? AND status = 'Approved'", (st.session_state.student_id,))
         total_points = cursor.fetchone()[0] or 0
@@ -339,13 +426,13 @@ else:
                 if submit_cert:
                     if uploaded_file and selected_activity:
                         cursor.execute(
-                            "SELECT COUNT(*) FROM submissions WHERE student_id = ? AND activity_title = ?", 
+                            "SELECT COUNT(*) FROM submissions WHERE student_id = ? AND activity_title = ? AND status != 'Rejected'", 
                             (st.session_state.student_id, selected_activity)
                         )
                         already_submitted = cursor.fetchone()[0]
 
                         if already_submitted > 0:
-                            st.error("⚠️ Alert: You have already uploaded a certificate for this activity!")
+                            st.error("⚠️ Alert: You have already uploaded an active certificate for this activity!")
                         else:
                             file_ext = os.path.splitext(uploaded_file.name)[1]
                             file_name = f"{st.session_state.student_id}_{selected_activity.replace(' ', '_')}{file_ext}"
@@ -366,7 +453,9 @@ else:
         with tab2:
             st.subheader("Certificate Submission Log")
             df_sub = pd.read_sql_query(
-                "SELECT activity_title AS 'Activity', status AS 'Request Status', points AS 'Grade' FROM submissions WHERE student_id = ?",
+                """SELECT activity_title AS 'Activity', status AS 'Request Status', 
+                          points AS 'Grade', rejection_reason AS 'Rejection Reason / Notes' 
+                   FROM submissions WHERE student_id = ? ORDER BY id DESC""",
                 conn, params=(st.session_state.student_id,)
             )
             if not df_sub.empty:
