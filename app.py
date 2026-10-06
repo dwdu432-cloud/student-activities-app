@@ -1,8 +1,15 @@
 import streamlit as st
-import sqlite3
 import os
 import pandas as pd
 import base64
+from supabase import create_client, Client
+
+# ==================== إعدادات الربط بـ Supabase ====================
+# يمكنك جلب المفاتيح من st.secrets أو كتابتها هنا مباشرة
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://fspjyzcyveolvojrwvpi.supabase.co")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "ضع_مفتاح_anon_key_هنا")
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # كود لإخفاء العناصر غير المرغوبة (الهيدر، الفوتر، وعلامة Hosted with Streamlit)
 hide_streamlit_style = """
@@ -173,52 +180,15 @@ st.markdown(f"""
     <hr style="margin: 10px 0 20px 0; border: none; border-top: 1px solid #e2e8f0;">
 """, unsafe_allow_html=True)
 
-# ==================== قاعدة البيانات ====================
-conn = sqlite3.connect('database.db', check_same_thread=False)
-cursor = conn.cursor()
-
-cursor.execute('''
-    CREATE TABLE IF NOT EXISTS activities (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL
-    )
-''')
-
-cursor.execute('''
-    CREATE TABLE IF NOT EXISTS students (
-        student_id TEXT PRIMARY KEY,
-        full_name TEXT NOT NULL
-    )
-''')
-
-cursor.execute('''
-    CREATE TABLE IF NOT EXISTS submissions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        student_id TEXT NOT NULL,
-        activity_title TEXT NOT NULL,
-        file_path TEXT NOT NULL,
-        status TEXT DEFAULT 'Under Review',
-        points INTEGER DEFAULT 0,
-        rejection_reason TEXT DEFAULT '',
-        FOREIGN KEY (student_id) REFERENCES students (student_id)
-    )
-''')
-conn.commit()
-
-# إضافة عمود rejection_reason إذا كانت قاعدة البيانات قديمة
-try:
-    cursor.execute("ALTER TABLE submissions ADD COLUMN rejection_reason TEXT DEFAULT ''")
-    conn.commit()
-except sqlite3.OperationalError:
-    pass  # العمود موجود بالفعل
-
-cursor.execute("SELECT COUNT(*) FROM activities")
-if cursor.fetchone()[0] == 0:
-    default_activities = [("AI Workshop",), ("C++ Programming Course",), ("IoT Workshop",)]
-    cursor.executemany("INSERT INTO activities (title) VALUES (?)", default_activities)
-    conn.commit()
-
-os.makedirs("uploaded_certificates", exist_ok=True)
+# ==================== التحقق والتهيئة للأنشطة الافتراضية ====================
+act_check = supabase.table("activities").select("id", count="exact").execute()
+if act_check.count == 0:
+    default_activities = [
+        {"title": "AI Workshop"},
+        {"title": "C++ Programming Course"},
+        {"title": "IoT Workshop"}
+    ]
+    supabase.table("activities").insert(default_activities).execute()
 
 query_params = st.query_params
 is_admin_route = query_params.get("admin") == "true"
@@ -255,8 +225,7 @@ if is_admin_route:
             new_act = st.text_input("Name of the new workshop:")
             if st.button("Add Workshop"):
                 if new_act.strip():
-                    cursor.execute("INSERT INTO activities (title) VALUES (?)", (new_act.strip(),))
-                    conn.commit()
+                    supabase.table("activities").insert({"title": new_act.strip()}).execute()
                     st.success(f"Successfully added ({new_act})!")
                     st.rerun()
 
@@ -270,36 +239,36 @@ if is_admin_route:
         with col_status:
             status_filter = st.selectbox("Filter Status:", ["All", "Under Review", "Approved", "Rejected"])
 
-        cursor.execute("SELECT title FROM activities")
-        all_activities = ["All Activities"] + [row[0] for row in cursor.fetchall()]
+        act_data = supabase.table("activities").select("title").execute().data
+        all_activities = ["All Activities"] + [r["title"] for r in act_data]
         with col_activity:
             activity_filter = st.selectbox("Filter Activity:", all_activities)
 
-        # بناء الاستعلام الهجين
-        sql_query = '''
-            SELECT s.id, st.full_name, s.student_id, s.activity_title, s.file_path, s.status, s.points, s.rejection_reason 
-            FROM submissions s
-            JOIN students st ON s.student_id = st.student_id
-            WHERE 1=1
-        '''
-        params = []
+        # جلب البيانات لعمل الفلترة الهجينة
+        sub_resp = supabase.table("submissions").select("*, students(full_name)").order("id", desc=True).execute()
+        raw_submissions = sub_resp.data
 
-        if search_query.strip():
-            sql_query += " AND (st.full_name LIKE ? OR s.student_id LIKE ?)"
-            params.extend([f"%{search_query.strip()}%", f"%{search_query.strip()}%"])
+        filtered_submissions = []
+        for sub in raw_submissions:
+            f_name = sub.get("students", {}).get("full_name", "") if sub.get("students") else ""
+            s_id = sub.get("student_id", "")
+            status = sub.get("status", "")
+            act_title = sub.get("activity_title", "")
 
-        if status_filter != "All":
-            sql_query += " AND s.status = ?"
-            params.append(status_filter)
+            # الفلترة بالشروط
+            matches_search = True
+            if search_query.strip():
+                sq = search_query.strip().lower()
+                matches_search = sq in f_name.lower() or sq in s_id.lower()
 
-        if activity_filter != "All Activities":
-            sql_query += " AND s.activity_title = ?"
-            params.append(activity_filter)
+            matches_status = (status_filter == "All") or (status == status_filter)
+            matches_act = (activity_filter == "All Activities") or (act_title == activity_filter)
 
-        sql_query += " ORDER BY s.id DESC"
-
-        cursor.execute(sql_query, params)
-        filtered_submissions = cursor.fetchall()
+            if matches_search and matches_status and matches_act:
+                filtered_submissions.append((
+                    sub["id"], f_name, s_id, act_title, sub.get("file_path", ""),
+                    status, sub.get("points", 0), sub.get("rejection_reason", "")
+                ))
 
         st.subheader("📥 Submissions List")
 
@@ -316,15 +285,14 @@ if is_admin_route:
                     elif status == "Rejected":
                         st.error(f"Rejection Reason: {reason}")
 
-                    if os.path.exists(f_path):
-                        if f_path.lower().endswith(('.png', '.jpg', '.jpeg')):
+                    if f_path:
+                        if any(f_path.lower().endswith(ext) for ext in ['.png', '.jpg', '.jpeg']):
                             st.image(f_path, use_container_width=True)
                         else:
-                            st.write("📄 The attached file is a PDF document.")
+                            st.markdown(f"[📄 Open Attached Document/PDF]({f_path})")
                     else:
                         st.warning("File path not found.")
 
-                    # خيارات الاعتماد والرفض متاحة بشكل ديناميكي
                     st.markdown("---")
                     action_col1, action_col2 = st.columns(2)
 
@@ -332,11 +300,11 @@ if is_admin_route:
                         st.markdown("##### ✅ Approve Certificate")
                         pts = st.number_input("Grade to assign:", min_value=1, max_value=20, value=5, key=f"pts_{sub_id}")
                         if st.button(f"Approve Grade #{sub_id}", key=f"btn_app_{sub_id}"):
-                            cursor.execute(
-                                "UPDATE submissions SET status = 'Approved', points = ?, rejection_reason = '' WHERE id = ?",
-                                (pts, sub_id)
-                            )
-                            conn.commit()
+                            supabase.table("submissions").update({
+                                "status": "Approved",
+                                "points": pts,
+                                "rejection_reason": ""
+                            }).eq("id", sub_id).execute()
                             st.success("Successfully approved the certificate!")
                             st.rerun()
 
@@ -345,11 +313,11 @@ if is_admin_route:
                         rej_reason = st.text_input("Reason for rejection:", key=f"reason_{sub_id}", placeholder="e.g., Unclear image, invalid date...")
                         if st.button(f"Reject Submission #{sub_id}", key=f"btn_rej_{sub_id}"):
                             if rej_reason.strip():
-                                cursor.execute(
-                                    "UPDATE submissions SET status = 'Rejected', points = 0, rejection_reason = ? WHERE id = ?",
-                                    (rej_reason.strip(), sub_id)
-                                )
-                                conn.commit()
+                                supabase.table("submissions").update({
+                                    "status": "Rejected",
+                                    "points": 0,
+                                    "rejection_reason": rej_reason.strip()
+                                }).eq("id", sub_id).execute()
                                 st.warning("Submission has been rejected with feedback saved.")
                                 st.rerun()
                             else:
@@ -359,13 +327,18 @@ if is_admin_route:
             st.info("No matching requests found based on your search/filter criteria.")
 
         st.subheader("📋 General Log Table")
-        df_all = pd.read_sql_query('''
-            SELECT s.id AS 'Request ID', st.full_name AS 'Student Name', s.student_id AS 'University ID', 
-                   s.activity_title AS 'Activity', s.status AS 'Status', s.points AS 'Grade', s.rejection_reason AS 'Rejection Reason'
-            FROM submissions s
-            JOIN students st ON s.student_id = st.student_id
-            ORDER BY s.id DESC
-        ''', conn)
+        log_records = []
+        for s in raw_submissions:
+            log_records.append({
+                'Request ID': s.get('id'),
+                'Student Name': s.get('students', {}).get('full_name', '') if s.get('students') else '',
+                'University ID': s.get('student_id'),
+                'Activity': s.get('activity_title'),
+                'Status': s.get('status'),
+                'Grade': s.get('points'),
+                'Rejection Reason': s.get('rejection_reason')
+            })
+        df_all = pd.DataFrame(log_records)
         st.dataframe(df_all, use_container_width=True)
 
 # ==================== 2. واجهة الطلاب ====================
@@ -381,8 +354,10 @@ else:
 
             if submit_login:
                 if s_id.strip() and s_name.strip():
-                    cursor.execute("INSERT OR REPLACE INTO students (student_id, full_name) VALUES (?, ?)", (s_id.strip(), s_name.strip()))
-                    conn.commit()
+                    supabase.table("students").upsert({
+                        "student_id": s_id.strip(),
+                        "full_name": s_name.strip()
+                    }).execute()
                     
                     st.session_state.logged_in = True
                     st.session_state.student_id = s_id.strip()
@@ -402,8 +377,9 @@ else:
 
         st.title("📄 Student Dashboard")
 
-        cursor.execute("SELECT SUM(points) FROM submissions WHERE student_id = ? AND status = 'Approved'", (st.session_state.student_id,))
-        total_points = cursor.fetchone()[0] or 0
+        # حساب النقاط
+        points_resp = supabase.table("submissions").select("points").eq("student_id", st.session_state.student_id).eq("status", "Approved").execute()
+        total_points = sum(r.get("points", 0) for r in points_resp.data) if points_resp.data else 0
 
         st.markdown(f"""
             <div class="score-card">
@@ -415,8 +391,8 @@ else:
         tab1, tab2 = st.tabs(["📤 Upload New Certificate", "📊 Request Status"])
 
         with tab1:
-            cursor.execute("SELECT title FROM activities")
-            activities = [row[0] for row in cursor.fetchall()]
+            act_data = supabase.table("activities").select("title").execute().data
+            activities = [r["title"] for r in act_data]
 
             with st.form("upload_form", clear_on_submit=True):
                 selected_activity = st.selectbox("Select Activity / Workshop:", activities)
@@ -425,40 +401,53 @@ else:
 
                 if submit_cert:
                     if uploaded_file and selected_activity:
-                        cursor.execute(
-                            "SELECT COUNT(*) FROM submissions WHERE student_id = ? AND activity_title = ? AND status != 'Rejected'", 
-                            (st.session_state.student_id, selected_activity)
-                        )
-                        already_submitted = cursor.fetchone()[0]
+                        existing = supabase.table("submissions").select("id").eq("student_id", st.session_state.student_id).eq("activity_title", selected_activity).neq("status", "Rejected").execute()
 
-                        if already_submitted > 0:
+                        if len(existing.data) > 0:
                             st.error("⚠️ Alert: You have already uploaded an active certificate for this activity!")
                         else:
                             file_ext = os.path.splitext(uploaded_file.name)[1]
                             file_name = f"{st.session_state.student_id}_{selected_activity.replace(' ', '_')}{file_ext}"
-                            file_path = os.path.join("uploaded_certificates", file_name)
-                            
-                            with open(file_path, "wb") as f:
-                                f.write(uploaded_file.getbuffer())
+                            file_bytes = uploaded_file.read()
 
-                            cursor.execute(
-                                "INSERT INTO submissions (student_id, activity_title, file_path) VALUES (?, ?, ?)",
-                                (st.session_state.student_id, selected_activity, file_path)
+                            # 1. رفع الملف إلى Supabase Storage
+                            storage_res = supabase.storage.from_("certificates").upload(
+                                path=file_name,
+                                file=file_bytes,
+                                file_options={"content-type": uploaded_file.type, "x-upsert": "true"}
                             )
-                            conn.commit()
+
+                            # 2. جلب رابط الصورة السحابي العام
+                            file_url = supabase.storage.from_("certificates").get_public_url(file_name)
+
+                            # 3. إدخال السجل في قاعدة البيانات
+                            supabase.table("submissions").insert({
+                                "student_id": st.session_state.student_id,
+                                "activity_title": selected_activity,
+                                "file_path": file_url,
+                                "status": "Under Review",
+                                "points": 0,
+                                "rejection_reason": ""
+                            }).execute()
+
                             st.success("Certificate uploaded successfully! It is now under review.")
                     else:
                         st.error("Please select an activity and attach a certificate file.")
 
         with tab2:
             st.subheader("Certificate Submission Log")
-            df_sub = pd.read_sql_query(
-                """SELECT activity_title AS 'Activity', status AS 'Request Status', 
-                          points AS 'Grade', rejection_reason AS 'Rejection Reason / Notes' 
-                   FROM submissions WHERE student_id = ? ORDER BY id DESC""",
-                conn, params=(st.session_state.student_id,)
-            )
-            if not df_sub.empty:
+            sub_user = supabase.table("submissions").select("activity_title, status, points, rejection_reason").eq("student_id", st.session_state.student_id).order("id", desc=True).execute().data
+            
+            if sub_user:
+                formatted_sub = []
+                for s in sub_user:
+                    formatted_sub.append({
+                        'Activity': s.get('activity_title'),
+                        'Request Status': s.get('status'),
+                        'Grade': s.get('points'),
+                        'Rejection Reason / Notes': s.get('rejection_reason')
+                    })
+                df_sub = pd.DataFrame(formatted_sub)
                 st.dataframe(df_sub, use_container_width=True)
             else:
                 st.info("You have not uploaded any certificates yet.")
