@@ -278,7 +278,7 @@ if is_admin_route:
                         st.warning("File path not found.")
 
                     st.markdown("---")
-                    action_col1, action_col2 = st.columns(2)
+                    action_col1, action_col2, action_col3 = st.columns([2, 2, 1])
 
                     with action_col1:
                         st.markdown("##### ✅ Approve Certificate")
@@ -306,6 +306,15 @@ if is_admin_route:
                                 st.rerun()
                             else:
                                 st.error("Please enter a rejection reason before proceeding.")
+
+                    with action_col3:
+                        st.markdown("##### 🗑️ Delete")
+                        st.write("")  # مسافة لموازنة المحاذاة
+                        st.write("")
+                        if st.button(f"Delete Request #{sub_id}", key=f"btn_del_sub_{sub_id}"):
+                            supabase.table("submissions").delete().eq("id", sub_id).execute()
+                            st.warning(f"Deleted request #{sub_id} successfully!")
+                            st.rerun()
 
         else:
             st.info("No matching requests found based on your search/filter criteria.")
