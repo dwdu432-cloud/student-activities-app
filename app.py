@@ -278,7 +278,7 @@ if is_admin_route:
                         st.warning("File path not found.")
 
                     st.markdown("---")
-                    action_col1, action_col2, action_col3 = st.columns([2, 2, 1])
+                    action_col1, action_col2 = st.columns(2)
 
                     with action_col1:
                         st.markdown("##### ✅ Approve Certificate")
@@ -307,21 +307,15 @@ if is_admin_route:
                             else:
                                 st.error("Please enter a rejection reason before proceeding.")
 
-                    with action_col3:
-                        st.markdown("##### 🗑️ Delete")
-                        st.write("")  # مسافة لموازنة المحاذاة
-                        st.write("")
-                        if st.button(f"Delete Request #{sub_id}", key=f"btn_del_sub_{sub_id}"):
-                            supabase.table("submissions").delete().eq("id", sub_id).execute()
-                            st.warning(f"Deleted request #{sub_id} successfully!")
-                            st.rerun()
-
         else:
             st.info("No matching requests found based on your search/filter criteria.")
 
+        # ==================== السجل العام + أداة الحذف المباشر ====================
         st.subheader("📋 General Log Table")
         log_records = []
+        all_req_ids = []
         for s in raw_submissions:
+            all_req_ids.append(s.get('id'))
             log_records.append({
                 'Request ID': s.get('id'),
                 'Student Name': s.get('students', {}).get('full_name', '') if s.get('students') else '',
@@ -333,6 +327,20 @@ if is_admin_route:
             })
         df_all = pd.DataFrame(log_records)
         st.dataframe(df_all, use_container_width=True)
+
+        # قسم حذف الطلبات من السجل العام
+        if all_req_ids:
+            with st.expander("🗑️ Delete Request from Log"):
+                col_del_id, col_del_btn = st.columns([3, 1])
+                with col_del_id:
+                    req_to_delete = st.selectbox("Select Request ID to delete:", all_req_ids)
+                with col_del_btn:
+                    st.write("") # للمحاذاة
+                    st.write("")
+                    if st.button("Delete Request"):
+                        supabase.table("submissions").delete().eq("id", req_to_delete).execute()
+                        st.success(f"Request #{req_to_delete} deleted successfully!")
+                        st.rerun()
 
 # ==================== 2. واجهة الطلاب ====================
 else:
