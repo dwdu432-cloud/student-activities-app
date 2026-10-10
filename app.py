@@ -5,28 +5,10 @@ import base64
 from supabase import create_client, Client
 
 # ==================== إعدادات الربط بـ Supabase ====================
-# يمكنك جلب المفاتيح من st.secrets أو كتابتها هنا مباشرة
 SUPABASE_URL = st.secrets.get("SUPABASE_URL", "https://fspjyzcyveolvojrwvpi.supabase.co")
 SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", "")
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-
-
-
-# كود لإخفاء العناصر غير المرغوبة (الهيدر، الفوتر، وعلامة Hosted with Streamlit)
-hide_streamlit_style = """
-            <style>
-            #MainMenu {visibility: hidden;}
-            footer {visibility: hidden;}
-            header {visibility: hidden;}
-            div[data-testid="stDecoration"] {display: none;}
-            .viewerBadge_container__1S-td {display: none !important;}
-            div[class*="viewerBadge"] {display: none !important;}
-            a[class*="viewerBadge"] {display: none !important;}
-            iframe[title="streamlit_badge"] {display: none !important;}
-            </style>
-            """
-st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
 # 1. إعداد الصفحة
 st.set_page_config(
@@ -45,117 +27,100 @@ def get_base64_image(image_path):
 img_uni = get_base64_image("logo_uni.png")
 img_dept = get_base64_image("logo_dept.png")
 
-logo_uni_html = f'<img src="data:image/png;base64,{img_uni}" style="max-height: 65px; width: auto;">' if img_uni else ''
-logo_dept_html = f'<img src="data:image/png;base64,{img_dept}" style="max-height: 65px; width: auto;">' if img_dept else ''
+logo_uni_html = f'<img src="data:image/png;base64,{img_uni}" style="max-height: 55px; width: auto;">' if img_uni else ''
+logo_dept_html = f'<img src="data:image/png;base64,{img_dept}" style="max-height: 55px; width: auto;">' if img_dept else ''
 
-# CSS معدل ومحسّن خصيصاً للشاشات الصغير (Mobile-Friendly)
+# ==================== تصميم واجهة جامعة المستقبل (CSS Muted Styling) ====================
 st.markdown("""
     <style>
-    /* 1. إعدادات خلفية التطبيق والخطوط */
+    /* 1. إعدادات خلفية التطبيق والخطوط والاتجاه من اليمين لليسار */
     .stApp {
         background-color: #f8f9fa !important;
         color: #1a202c !important;
+        direction: rtl;
+        text-align: right;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
 
-    /* 2. تصميم الهيدر التفاعلي (Responsive Header) */
+    /* 2. تصميم الهيدر الموحد الفاخر (مطابق لهوية الجامعة) */
     .header-box {
-        display: flex !important;
-        justify-content: space-between !important;
-        align-items: center !important;
-        width: 100% !important;
-        padding: 5px 0 !important;
-        gap: 8px !important;
+        background-color: #1a5243;
+        color: white;
+        padding: 15px 20px;
+        border-radius: 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0px 4px 12px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
     }
-
-    .header-logo {
-        flex: 0 0 auto !important;
-        display: flex !important;
-        align-items: center !important;
-    }
-
-    .header-logo img {
-        height: 55px !important;
-        width: auto !important;
-        object-fit: contain !important;
-    }
-
+    
     .header-text {
-        flex: 1 1 auto !important;
-        text-align: center !important;
-        padding: 0 5px !important;
+        text-align: center;
+        flex-grow: 1;
+        padding: 0 10px;
     }
 
     .header-text h3 {
         font-size: 1.15rem !important;
-        color: #1e3a8a !important;
+        color: #ffffff !important;
         margin: 0 !important;
         font-weight: 800 !important;
-        line-height: 1.2 !important;
     }
 
     .header-text h5 {
-        font-size: 0.8rem !important;
-        color: #4b5563 !important;
+        font-size: 0.75rem !important;
+        color: #e2e8f0 !important;
         margin: 3px 0 0 0 !important;
         font-weight: 600 !important;
-        line-height: 1.2 !important;
     }
 
-    /* 3. تعديل حجم الهيدر خصيصاً للشاشات الصغيرة (الموبايل) */
-    @media (max-width: 600px) {
-        .header-logo img {
-            height: 40px !important;
-        }
-        .header-text h3 {
-            font-size: 0.85rem !important;
-            white-space: nowrap !important;
-        }
-        .header-text h5 {
-            font-size: 0.6rem !important;
-            white-space: nowrap !important;
-        }
-    }
-
-    /* 4. إصلاح حقول الإدخال ومنع السواد في الموبايل واللابتوب */
-    div[data-baseweb="input"], input {
+    /* 3. إصلاح حقول الإدخال */
+    div[data-baseweb="input"], input, select {
         background-color: #ffffff !important;
         color: #0f172a !important;
-        border-radius: 8px !important;
+        border-radius: 10px !important;
     }
 
-    .stTextInput input {
+    .stTextInput input, .stSelectbox select {
         background-color: #ffffff !important;
         color: #0f172a !important;
         border: 1px solid #cbd5e1 !important;
     }
 
-    .stTextInput label p, label[data-testid="stWidgetLabel"] p {
+    label, .stTextInput label p, label[data-testid="stWidgetLabel"] p {
         color: #1e293b !important;
-        font-weight: 600 !important;
+        font-weight: 700 !important;
+        text-align: right !important;
     }
 
-    /* 5. الأزرار */
+    /* 4. الأزرار بلون جامعة المستقبل */
     .stButton>button, div[data-testid="stFormSubmitButton"]>button {
-        background-color: #1e3a8a !important;
+        background-color: #1a5243 !important;
         color: #ffffff !important;
-        border-radius: 8px !important;
+        border-radius: 10px !important;
         border: none !important;
         padding: 10px 20px !important;
         font-weight: bold !important;
         width: 100% !important;
+        transition: 0.3s;
+    }
+    .stButton>button:hover, div[data-testid="stFormSubmitButton"]>button:hover {
+        background-color: #133d32 !important;
+        color: #ffffff !important;
     }
 
-    /* 6. بطاقة إجمالي النقاط */
+    /* 5. بطاقة إجمالي النقاط */
     .score-card {
         background-color: #ffffff;
-        border-left: 5px solid #1e3a8a;
-        padding: 15px;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        border-right: 6px solid #1a5243;
+        padding: 15px 20px;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
         margin-bottom: 20px;
     }
 
-    /* 7. إخفاء زوائد Streamlit والشارة الحمراء بالكامل */
+    /* 6. إخفاء زوائد Streamlit بالكامل */
     #MainMenu, header, footer, 
     div[data-testid="stHeader"], 
     div[data-testid="stToolbar"],
@@ -169,17 +134,16 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# ==================== عرض الهيدر الموحد ====================
+# ==================== عرض الهيدر الموحد بتصميم الجامعة ====================
 st.markdown(f"""
     <div class="header-box">
         <div class="header-logo">{logo_uni_html}</div>
         <div class="header-text">
-            <h3>Al-Mustaqbal University</h3>
-            <h5>Department of Artificial Intelligence Engineering</h5>
+            <h3>جامعـة المـسـتقبـل • Al-Mustaqbal University</h3>
+            <h5>قسم هندسة تقنيات الذكاء الاصطناعي • Department of AI Engineering</h5>
         </div>
         <div class="header-logo">{logo_dept_html}</div>
     </div>
-    <hr style="margin: 10px 0 20px 0; border: none; border-top: 1px solid #e2e8f0;">
 """, unsafe_allow_html=True)
 
 # ==================== التحقق والتهيئة للأنشطة الافتراضية ====================
@@ -204,7 +168,7 @@ if 'student_name' not in st.session_state:
 
 # ==================== 1. لوحة رئيس القسم ====================
 if is_admin_route:
-    st.markdown("<h2 style='text-align:center;'>⚙️ Department Head Dashboard</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align:center; color:#1a5243;'>⚙️ Department Head Dashboard</h2>", unsafe_allow_html=True)
 
     if not st.session_state.get('admin_logged_in', False):
         with st.form("admin_login_form"):
@@ -246,7 +210,6 @@ if is_admin_route:
         with col_activity:
             activity_filter = st.selectbox("Filter Activity:", all_activities)
 
-        # جلب البيانات لعمل الفلترة الهجينة
         sub_resp = supabase.table("submissions").select("*, students(full_name)").order("id", desc=True).execute()
         raw_submissions = sub_resp.data
 
@@ -257,7 +220,6 @@ if is_admin_route:
             status = sub.get("status", "")
             act_title = sub.get("activity_title", "")
 
-            # الفلترة بالشروط
             matches_search = True
             if search_query.strip():
                 sq = search_query.strip().lower()
@@ -346,7 +308,7 @@ if is_admin_route:
 # ==================== 2. واجهة الطلاب ====================
 else:
     if not st.session_state.logged_in:
-        st.markdown("<h2 style='text-align: center; color: #1e293b; font-weight: 800; margin-bottom: 5px;'>🎓 Student Activities System Portal</h2>", unsafe_allow_html=True)
+        st.markdown("<h2 style='text-align: center; color: #1a5243; font-weight: 800; margin-bottom: 5px;'>🎓 Student Portal Login</h2>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center; color: #64748b; font-size: 0.95rem;'>Welcome, student! Please log in to track your activities.</p>", unsafe_allow_html=True)
 
         with st.form("student_login_form"):
@@ -379,13 +341,12 @@ else:
 
         st.title("📄 Student Dashboard")
 
-        # حساب النقاط
         points_resp = supabase.table("submissions").select("points").eq("student_id", st.session_state.student_id).eq("status", "Approved").execute()
         total_points = sum(r.get("points", 0) for r in points_resp.data) if points_resp.data else 0
 
         st.markdown(f"""
             <div class="score-card">
-                <h3 style="margin:0; color:#1e3a8a !important;">Total Points Earned: {total_points} Points</h3>
+                <h3 style="margin:0; color:#1a5243 !important;">Total Points Earned: {total_points} Points</h3>
                 <p style="margin:5px 0 0 0; color:#6b7280 !important;">Points are added automatically once the certificate is verified by the department.</p>
             </div>
         """, unsafe_allow_html=True)
@@ -412,17 +373,14 @@ else:
                             file_name = f"{st.session_state.student_id}_{selected_activity.replace(' ', '_')}{file_ext}"
                             file_bytes = uploaded_file.read()
 
-                            # 1. رفع الملف إلى Supabase Storage
                             storage_res = supabase.storage.from_("certificates").upload(
                                 path=file_name,
                                 file=file_bytes,
                                 file_options={"content-type": uploaded_file.type, "x-upsert": "true"}
                             )
 
-                            # 2. جلب رابط الصورة السحابي العام
                             file_url = supabase.storage.from_("certificates").get_public_url(file_name)
 
-                            # 3. إدخال السجل في قاعدة البيانات
                             supabase.table("submissions").insert({
                                 "student_id": st.session_state.student_id,
                                 "activity_title": selected_activity,
