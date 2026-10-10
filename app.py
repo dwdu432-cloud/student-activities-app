@@ -187,13 +187,35 @@ if is_admin_route:
             st.session_state.admin_logged_in = False
             st.rerun()
 
-        with st.expander("➕ Add New Activity / Workshop"):
-            new_act = st.text_input("Name of the new workshop:")
+       with st.expander("📌 Manage Activities (Add / Delete)"):
+            # 1. إضافة نشاط جديد
+            new_act = st.text_input("Name of the new workshop/activity:")
             if st.button("Add Workshop"):
                 if new_act.strip():
                     supabase.table("activities").insert({"title": new_act.strip()}).execute()
                     st.success(f"Successfully added ({new_act})!")
                     st.rerun()
+                else:
+                    st.error("Please enter a valid activity name.")
+
+            st.markdown("---")
+            st.markdown("##### 🗑️ Existing Activities List")
+            
+            # جلب الأنشطة الحالية لعرضها مع زر الحذف
+            current_acts = supabase.table("activities").select("id, title").execute().data
+            if current_acts:
+                for act in current_acts:
+                    act_col1, act_col2 = st.columns([3, 1])
+                    with act_col1:
+                        st.write(f"• {act['title']}")
+                    with act_col2:
+                        if st.button("Delete", key=f"del_act_{act['id']}"):
+                            # حذف النشاط من جدول الأنشطة
+                            supabase.table("activities").delete().eq("id", act['id']).execute()
+                            st.warning(f"Deleted activity: {act['title']}")
+                            st.rerun()
+            else:
+                st.info("No activities found.")
 
         # ==================== الفلترة والبحث المتقدم ====================
         st.subheader("🔍 Search & Filter Requests")
